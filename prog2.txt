@@ -1,0 +1,19 @@
+.NombreProg Programa2
+.NumeroPalabras 7
+_start 0
+
+// --------- CÓDIGO ---------
+// Mostrar '222' en pantalla mediante SYSCALL 2
+0400005    // LOAD 5 (Direccion del 222)
+2500000    // PSH (Apilar 222)
+0400002    // LOAD 2 (Syscall Imprimir)
+1300000    // SVC (Llamar Imprimir)
+// Terminar (SYSCALL 1)
+0400006    // LOAD 6 (Direccion del 0)
+2500000    // PSH (Apilar 0)
+0400001    // LOAD 1 (Syscall Terminar)
+1300000    // SVC 
+
+// --------- DATOS ---------
+0000222    // RAM[5] -> Valor 222
+0000000    // RAM[6] -> Valor 0 (Exito)
