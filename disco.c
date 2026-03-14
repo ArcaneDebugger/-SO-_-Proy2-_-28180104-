@@ -2,6 +2,8 @@
 #include "logger.h"
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
+#include <stdlib.h>
 
 void disco_inicializar(SimuladorDisco_t *disco) {
     disco->cantidad_programas = 0;
@@ -54,19 +56,26 @@ int disco_cargar_programa(SimuladorDisco_t *disco, const char *archivo, int *can
     int en_codigo = 0;
 
     while (fgets(linea, sizeof(linea), fp)) {
-        linea[strcspn(linea, "\n")] = 0;
-        if (strlen(linea) == 0 || linea[0] == '\n') continue;
+        // 1. Limpiar espacios y caracteres de control al inicio
+        char *ptr = linea;
+        while (*ptr && isspace((unsigned char)*ptr)) ptr++;
+        
+        // 2. Ignorar lineas vacias o comentarios
+        if (*ptr == '\0' || strncmp(ptr, "//", 2) == 0) continue;
 
-        if (strncmp(linea, ".NombreProg", 11) == 0) {
+        // 3. Procesar directivas
+        if (strncmp(ptr, ".NombreProg", 11) == 0) {
             en_codigo = 1;
             continue;
-        } else if (strncmp(linea, "_start", 6) == 0 || strncmp(linea, ".NumeroPalabras", 15) == 0) {
+        } 
+        
+        if (strncmp(ptr, "_start", 6) == 0 || strncmp(ptr, ".NumeroPalabras", 15) == 0) {
             continue;
         }
 
-        if (en_codigo && linea[0] >= '0' && linea[0] <= '9') {
-            palabra_t instruccion;
-            sscanf(linea, "%d", &instruccion);
+        // 4. Si estamos en zona de codigo y empieza por numero, cargarlo
+        if (en_codigo && isdigit((unsigned char)ptr[0])) {
+            palabra_t instruccion = (palabra_t)strtol(ptr, NULL, 10);
 
             if (sector->cant_palabras >= MAX_CODE_SIZE) {
                 log_error("Programa excede el limite del sector de disco", MAX_CODE_SIZE);

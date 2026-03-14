@@ -30,6 +30,7 @@ typedef struct {
     int ejecutando;
     int ciclos_reloj;
     int periodo_reloj;
+    int pico_memoria; // Pico maximo de memoria de usuario ocupada
 } Sistema_t;
 
 // Busca un espacio vacío en la tabla y crea un proceso.

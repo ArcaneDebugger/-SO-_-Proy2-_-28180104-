@@ -9,11 +9,21 @@ int sistema_crear_proceso(Sistema_t *sys, const char *archivo) {
     //
     int indice_libre = -1;
 
-    // Buscar un hueco libre en la tabla de procesos (máximo 20)
+    // 1. Intentar buscar un hueco virgen (pid == 0) primero
     for (int i = 0; i < MAX_PROCESOS; i++) {
-        if (sys->tabla_procesos[i].estado == TERMINADO || sys->tabla_procesos[i].pid == 0) {
+        if (sys->tabla_procesos[i].pid == 0) {
             indice_libre = i;
             break;
+        }
+    }
+
+    // 2. Si no hay huecos vírgenes, reutilizar un slot TERMINADO
+    if (indice_libre == -1) {
+        for (int i = 0; i < MAX_PROCESOS; i++) {
+            if (sys->tabla_procesos[i].estado == TERMINADO) {
+                indice_libre = i;
+                break;
+            }
         }
     }
 
@@ -57,6 +67,7 @@ int sistema_crear_proceso(Sistema_t *sys, const char *archivo) {
     nuevo_proceso->tiempo_inicio = sys->ciclos_reloj;
     nuevo_proceso->base_disco = sector_disco;
     nuevo_proceso->tics_dormido = 0;
+    nuevo_proceso->tamano_real = tam_requerido;
     
     // 6. Inicializar contexto de CPU
     memset(&nuevo_proceso->contexto, 0, sizeof(CPU_t));
@@ -204,6 +215,7 @@ void sistema_inicializar(Sistema_t *sys) {
     sys->ejecutando = 0;     //Indica si la maquina esta corriendo 
     sys->ciclos_reloj = 0;
     sys->periodo_reloj = 0;
+    sys->pico_memoria = 0;
     
     log_mensaje("Sistema completo inicializado");
 }
@@ -231,8 +243,37 @@ void sistema_iniciar_ejecucion(Sistema_t *sys) {
     while (sys->ejecutando && hay_procesos_activos(sys)) {
         sistema_ciclo(sys);
     }
-    printf("\n[SO] Ejecucion finalizada (Todos los procesos terminaron o sistema detenido)\n\n");
+    printf("\n[SO] Ejecucion finalizada (Todos los procesos terminaron o sistema detenido)\n");
     sys->ejecutando = 0;
+
+    // Resumen post-ejecucion
+    const char* nombres_est[] = {"NUEVO", "LISTO", "EJECUCION", "DORMIDO", "TERMINADO"};
+    printf("\n +-------------------------------------------------------------------------------+\n");
+    printf(" |                            RESUMEN DE EJECUCION                               |\n");
+    printf(" +------+------------+-----------------+-------------+---------+---------+-------+\n");
+    printf(" | PID  | ESTADO     | PROGRAMA        | RAM (BASE)  | %% ASIG  | %% REAL  | FRAG  |\n");
+    printf(" +------+------------+-----------------+-------------+---------+---------+-------+\n");
+    for (int i = 0; i < MAX_PROCESOS; i++) {
+        if (sys->tabla_procesos[i].pid != 0) {
+            int tam_asig = TAM_PARTICION;
+            int tam_real = sys->tabla_procesos[i].tamano_real;
+            float pct_asig = (float)tam_asig * 100.0f / MEM_USUARIO;
+            float pct_real = (float)tam_real * 100.0f / MEM_USUARIO;
+            int frag_interna = tam_asig - tam_real;
+
+            printf(" | %-4d | %-10s | %-15s | %-11d | %6.2f%% | %6.2f%% | %-5d |\n",
+                   sys->tabla_procesos[i].pid,
+                   nombres_est[sys->tabla_procesos[i].estado],
+                   sys->tabla_procesos[i].nombre_programa,
+                   sys->tabla_procesos[i].contexto.RB,
+                   pct_asig,
+                   pct_real,
+                   frag_interna);
+        }
+    }
+    printf(" +------+------------+-----------------+-------------+---------+---------+-------+\n");
+    printf(" * FRAG = Fragmentacion Interna (Palabras desperdiciadas en la particion estatica)\n");
+    printf(" Ciclos de reloj totales: %d\n\n", sys->ciclos_reloj);
 }
 
 void sistema_manejar_syscall(Sistema_t *sys) {
@@ -255,7 +296,7 @@ void sistema_manejar_syscall(Sistema_t *sys) {
             for (int i = 0; i < MAX_PROCESOS; i++) {
                 if (sys->tabla_procesos[i].pid == sys->proceso_actual) {
                     sys->tabla_procesos[i].estado = TERMINADO;
-                    memoria_liberar_espacio(&sys->memoria, sys->tabla_procesos[i].contexto.RB, sys->tabla_procesos[i].contexto.RL);
+                    // memoria_liberar_espacio(&sys->memoria, sys->tabla_procesos[i].contexto.RB, sys->tabla_procesos[i].contexto.RL);
                     sistema_log(sys->proceso_actual, EJECUCION, TERMINADO);
                     break;
                 }
@@ -341,7 +382,7 @@ void sistema_ciclo(Sistema_t *sys) {
                 for (int i = 0; i < MAX_PROCESOS; i++) {
                     if (sys->tabla_procesos[i].pid == sys->proceso_actual) {
                         sys->tabla_procesos[i].estado = TERMINADO;
-                        memoria_liberar_espacio(&sys->memoria, sys->tabla_procesos[i].contexto.RB, sys->tabla_procesos[i].contexto.RL);
+                        // memoria_liberar_espacio(&sys->memoria, sys->tabla_procesos[i].contexto.RB, sys->tabla_procesos[i].contexto.RL);
                         sistema_log(sys->proceso_actual, EJECUCION, TERMINADO);
                         break;
                     }
@@ -372,6 +413,13 @@ void sistema_ciclo(Sistema_t *sys) {
     // Incrementar contador de ciclos y quantum si hay algo corriendo
     sys->ciclos_reloj++;
     
+    // Rastrear el pico de memoria de usuario (solo palabras de usuario)
+    int uso_actual = 0;
+    for (int i = MEM_SO; i < TAM_MEMORIA; i++) {
+        if (sys->memoria.ocupado[i]) uso_actual++;
+    }
+    if (uso_actual > sys->pico_memoria) sys->pico_memoria = uso_actual;
+
     if (sys->proceso_actual != -1) {
         sys->contador_quantum++;
         if (sys->contador_quantum >= 2) {
@@ -393,7 +441,7 @@ void sistema_ciclo(Sistema_t *sys) {
             for (int i = 0; i < MAX_PROCESOS; i++) {
                 if (sys->tabla_procesos[i].pid == sys->proceso_actual) {
                     sys->tabla_procesos[i].estado = TERMINADO;
-                    memoria_liberar_espacio(&sys->memoria, sys->tabla_procesos[i].contexto.RB, sys->tabla_procesos[i].contexto.RL);
+                    // memoria_liberar_espacio(&sys->memoria, sys->tabla_procesos[i].contexto.RB, sys->tabla_procesos[i].contexto.RL);
                     sistema_log(sys->proceso_actual, EJECUCION, TERMINADO);
                     break;
                 }
@@ -410,6 +458,8 @@ void sistema_ciclo(Sistema_t *sys) {
 void sistema_consola(Sistema_t *sys) {
 
     char comando[256];   // Almacenara la linea completa que el usuario escriba.
+    char archivo[256];   // Se usara para guardar el nombre del programa.
+    char modo[20];       // Se usara para guardar el modo si se especifica.
         
     while (1) {
         
@@ -448,41 +498,84 @@ void sistema_consola(Sistema_t *sys) {
             }
         }
 
-        // Comando para mostrar el contenido de la memoria.
+        // Comando para mostrar el contenido completo de la memoria.
         else if (strcmp(token, "memestat") == 0) {
             int ocupada = 0;
-            for (int i = 0; i < TAM_MEMORIA; i++) {
+            // Calcular ocupación solo en área de usuario para el porcentaje de usuario
+            for (int i = MEM_SO; i < TAM_MEMORIA; i++) {
                 if (sys->memoria.ocupado[i]) ocupada++;
             }
-            float porcentaje = (float)ocupada * 100.0f / TAM_MEMORIA;
-            printf("\n--- Estado de la Memoria ---\n");
-            printf("Palabras Ocupadas  : %d\n", ocupada);
-            printf("Palabras Libres    : %d\n", TAM_MEMORIA - ocupada);
-            printf("Porcentaje de Uso  : %.2f%%\n", porcentaje);
-            printf("Memoria asignable a procesos desde RAM[%d]\n\n", MEM_SO);
+            float pct_actual = (float)ocupada * 100.0f / MEM_USUARIO;
+            float pct_pico = (float)sys->pico_memoria * 100.0f / MEM_USUARIO;
+
+            printf("\n======================================================================\n");
+            printf("  ESTADO DE LA MEMORIA PRINCIPAL (Total: %d palabras)\n", TAM_MEMORIA);
+            printf("======================================================================\n");
+            printf("  AREA SO      : RAM[0] a RAM[%d]\n", MEM_SO - 1);
+            printf("  AREA USUARIO : RAM[%d] a RAM[%d]\n", MEM_SO, TAM_MEMORIA - 1);
+            printf("  --------------------------------------------------------------------\n");
+            printf("  Uso Actual Usuario : %d pal (%.2f%%)\n", ocupada, pct_actual);
+            printf("  Pico Maximo Usuario: %d pal (%.2f%%)\n", sys->pico_memoria, pct_pico);
+            printf("  --------------------------------------------------------------------\n");
+            
+            printf("  Mapa de Particiones (20 de %d pal):\n  [", TAM_PARTICION);
+            for (int p = 0; p < MAX_PROCESOS; p++) {
+                int inicio = MEM_SO + (p * TAM_PARTICION);
+                printf("%c", sys->memoria.ocupado[inicio] ? 'P' : '.');
+            }
+            printf("] (P:Ocupada, .:Libre)\n");
+            printf("======================================================================\n");
+
+            printf("\n  CONTENIDO DE LA MEMORIA (Volcado Completo):\n");
+            printf("  Dir. |  +0      +1      +2      +3      +4      +5      +6      +7      +8      +9\n");
+            printf("  -----+----------------------------------------------------------------------------\n");
+            
+            for (int i = 0; i < TAM_MEMORIA; i += 10) {
+                // Solo imprimir si hay algo de datos en este bloque de 10 o es el inicio de un area clave
+                int tiene_datos = 0;
+                for(int j=0; j<10 && (i+j)<TAM_MEMORIA; j++) {
+                    if (sys->memoria.datos[i+j] != 0 || sys->memoria.ocupado[i+j]) {
+                        tiene_datos = 1;
+                        break;
+                    }
+                }
+
+                if (tiene_datos || i == 0 || i == MEM_SO) {
+                    printf("  %04d |", i);
+                    for (int j = 0; j < 10; j++) {
+                        if (i + j < TAM_MEMORIA) {
+                            printf(" %07d", sys->memoria.datos[i+j]);
+                        }
+                    }
+                    printf("\n");
+                } else if (i > 0 && (i % 100 == 0)) {
+                    // Un pequeño indicador de bloques vacíos para no perder la noción de la dirección
+                    // pero sin llenar la pantalla de ceros.
+                    // printf("  .... | (bloque vacio hasta %04d)\n", i + 9);
+                }
+            }
+            printf("  ----------------------------------------------------------------------------------\n\n");
         }
 
         // Comando para mostrar todos los procesos del sistema.
         else if (strcmp(token, "ps") == 0) {
             printf("\n--- Tabla de Procesos ---\n");
-            printf("%-5s | %-12s | %-15s | %-10s\n", "PID", "ESTADO", "PROGRAMA", "% MEM");
-            printf("------------------------------------------------------\n");
+            printf("%-5s | %-12s | %-15s | %-8s | %-8s\n", "PID", "ESTADO", "PROGRAMA", "% ASIG", "% REAL");
+            printf("--------------------------------------------------------------------\n");
             const char* nombres_estado[] = {"NUEVO", "LISTO", "EJECUCION", "DORMIDO", "TERMINADO"};
             int encontrados = 0;
             for(int i = 0; i < MAX_PROCESOS; i++) {
                 if (sys->tabla_procesos[i].pid != 0) {
                     encontrados++;
-                    float pct = 0;
-                    if (sys->tabla_procesos[i].estado != TERMINADO && sys->tabla_procesos[i].estado != NUEVO) {
-                         int size = sys->tabla_procesos[i].contexto.RL - sys->tabla_procesos[i].contexto.RB + 1;
-                         // Calculamos el porcentaje en base a la memoria habilitada para procesos (MEM_USUARIO)
-                         pct = (float)size * 100.0f / MEM_USUARIO;
-                    }
-                    printf("%-5d | %-12s | %-15s | %-5.2f%%\n", 
+                    float pct_asig = (float)TAM_PARTICION * 100.0f / MEM_USUARIO;
+                    float pct_real = (float)sys->tabla_procesos[i].tamano_real * 100.0f / MEM_USUARIO;
+                    
+                    printf("%-5d | %-12s | %-15s | %6.2f%% | %6.2f%%\n", 
                            sys->tabla_procesos[i].pid,
                            nombres_estado[sys->tabla_procesos[i].estado],
                            sys->tabla_procesos[i].nombre_programa,
-                           pct);
+                           pct_asig,
+                           pct_real);
                 }
             }
             if (encontrados == 0) {
@@ -507,12 +600,18 @@ void sistema_consola(Sistema_t *sys) {
         // Comando de ayuda para conocer todos los comandos.
         else if (strcmp(token, "ayuda") == 0) {
             printf("\n");
-            printf(" %-20s | %s\n", "ejecutar <p1> <pn...>", "Carga y ejecuta uno o varios programas en paralelo.");
-            printf(" %-20s | %s\n", "memestat", "Muestra el estado de la Memoria Principal y su \% de uso.");
-            printf(" %-20s | %s\n", "ps", "Muestra la tabla de Procesos Activos (PID, Estado, RAM).");
-            printf(" %-20s | %s\n", "reiniciar", "Limpia la memoria y reinicia el simulador desde cero.");
-            printf(" %-20s | %s\n", "apagar", "Finaliza la consola y apaga el Sistema Operativo.");
-            printf(" %-20s | %s\n", "ayuda", "Muestra este menú de opciones.");
+            printf(" +----------------------------------------------------------------------+\n");
+            printf(" |                    COMANDOS DEL SISTEMA OPERATIVO                    |\n");
+            printf(" +------------------------+---------------------------------------------+\n");
+            printf(" |  COMANDO               |  DESCRIPCION                                |\n");
+            printf(" +------------------------+---------------------------------------------+\n");
+            printf(" |  ejecutar <p1> <pn...>  |  Carga y ejecuta programas en paralelo.     |\n");
+            printf(" |  memestat               |  Estado de Memoria Principal y %% de uso.    |\n");
+            printf(" |  ps                     |  Tabla de Procesos (PID, Estado, RAM).       |\n");
+            printf(" |  reiniciar              |  Limpia memoria y reinicia el simulador.     |\n");
+            printf(" |  apagar                 |  Finaliza la consola y apaga el SO.          |\n");
+            printf(" |  ayuda                  |  Muestra este menu de opciones.              |\n");
+            printf(" +------------------------+---------------------------------------------+\n");
             printf("\n");
         }
 

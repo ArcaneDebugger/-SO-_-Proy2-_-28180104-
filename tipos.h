@@ -12,7 +12,7 @@
 
 // Cantidad máxima de Procesos en la memoria
 #define MAX_PROCESOS 20
-#define TAM_PARTICION (MEM_USUARIO / MAX_PROCESOS)
+#define TAM_PARTICION (MEM_USUARIO / MAX_PROCESOS) // 1700 / 20 = 85 particiones estáticas
 
 // El procesador tiene dos modos de ejecucion:
 #define MODO_USUARIO 0
@@ -100,6 +100,7 @@ typedef struct {
     int tiempo_inicio;      // Para estadísticas y logs
     uint32_t base_disco;    // Dirección donde reside en el disco duro
     int tics_dormido;       // Tics restantes para despertar
+    int tamano_real;        // Cantidad de palabras reales (codigo + pila)
 } BCP_t;
 
 // Estructura del DMA

@@ -1,16 +1,35 @@
-.NombreProg Programa1
-.NumeroPalabras 6
+.NombreProg Prog_Imprimir
+.NumeroPalabras 12
 _start 0
 
-// [0] LOAD inmediato 10 -> AC = 10
-04100010
-// [1] SUM inmediato 5  -> AC = 15
-00100005
-// [2] LOAD inmediato 0 (Estado OK para termina_prog)
-04100000
-// [3] PSH (Apilar el 0 como parametro)
+// ========= Programa 1: Demuestra Syscall 2 (Imprimir) y Syscall 1 (Terminar) =========
+
+// --- Imprimir el valor 42 ---
+// [0] LOAD inmediato 42 -> AC = 42
+04100042
+// [1] PSH (Apilar 42 como parametro de imprime_pantalla)
 25000000
-// [4] LOAD inmediato 1 (Codigo Syscall Terminar)
+// [2] LOAD inmediato 2 -> AC = 2 (Codigo Syscall Imprimir)
+04100002
+// [3] SVC (Llamar al SO -> imprime 42)
+13000000
+
+// --- Imprimir el valor 99 ---
+// [4] LOAD inmediato 99 -> AC = 99
+04100099
+// [5] PSH (Apilar 99)
+25000000
+// [6] LOAD inmediato 2 -> AC = 2 (Imprimir)
+04100002
+// [7] SVC (Llamar al SO -> imprime 99)
+13000000
+
+// --- Terminar normalmente ---
+// [8] LOAD inmediato 0 -> AC = 0 (Estado: exito)
+04100000
+// [9] PSH (Apilar 0 como parametro de termina_prog)
+25000000
+// [10] LOAD inmediato 1 -> AC = 1 (Codigo Syscall Terminar)
 04100001
-// [5] SVC (Llamar al SO)
+// [11] SVC (Terminar programa)
 13000000
