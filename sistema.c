@@ -4,8 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-int g_modo_debug = 0;
-
 int sistema_crear_proceso(Sistema_t *sys, const char *archivo) {
     
     //
@@ -149,7 +147,15 @@ void sistema_despachar(Sistema_t *sys, int proximo_indice) {
 
 void sistema_planificar(Sistema_t *sys) {
     int prox = sistema_planificar_rr(sys);
-    if (prox != -1 || sys->proceso_actual != -1) {
+    
+    // Si no hay nadie LISTO y ya hay un proceso corriendo, simplemente dejarlo seguir
+    if (prox == -1 && sys->proceso_actual != -1) {
+        sys->contador_quantum = 0; // Reiniciar quantum para el mismo proceso
+        return;
+    }
+    
+    // Si hay alguien LISTO, hacer el cambio de contexto
+    if (prox != -1) {
         sistema_despachar(sys, prox);
     }
 }
@@ -210,26 +216,21 @@ int hay_procesos_activos(Sistema_t *sys) {
     return 0;
 }
 
-void sistema_iniciar_ejecucion(Sistema_t *sys, int modo_debug) {
+void sistema_iniciar_ejecucion(Sistema_t *sys) {
     sys->ejecutando = 1;
-    g_modo_debug = modo_debug;
     
     // Al arrancar o reiniciar ejecucion, forzamos la planificacion
     sistema_planificar(sys);
     
     char msg[200];
-    sprintf(msg, "Iniciando simulacion %s", modo_debug ? "(DEBUG)" : "");
+    sprintf(msg, "Iniciando simulacion");
     log_mensaje(msg);
     printf("\n%s\n\n", msg);
     
-    if (modo_debug) {
-        sistema_debugger(sys);
-    } else {
-        while (sys->ejecutando && hay_procesos_activos(sys)) {
-            sistema_ciclo(sys);
-        }
-        printf("\nEjecucion finalizada (Todos los procesos terminaron o sistema detenido)\n\n");
+    while (sys->ejecutando && hay_procesos_activos(sys)) {
+        sistema_ciclo(sys);
     }
+    printf("\n[SO] Ejecucion finalizada (Todos los procesos terminaron o sistema detenido)\n\n");
     sys->ejecutando = 0;
 }
 
@@ -308,7 +309,16 @@ void sistema_manejar_syscall(Sistema_t *sys) {
 
 //Esta funcion encapsula lo que pasa en un ciclo de reloj.
 void sistema_ciclo(Sistema_t *sys) {
-    // Verificar si hay interrupciones pendientes
+    
+    if (!sys->ejecutando) return;
+    
+    // Arbitraje del bus para CPU
+    pthread_mutex_lock(&sys->mutex_bus);  // La CPU pide permiso exclusivo para usar el bus
+    
+    // Ejecutar ciclo de instruccion
+    cpu_ciclo_instruccion(&sys->cpu, sys->memoria.datos, &sys->dma);// Una vez tiene el bus, realiza la busqueda y ejecucion
+    
+    // Procesar interrupciones INMEDIATAMENTE despues de la instruccion
     if (interrupcion_pendiente) {
         // Si ocurre una interrupcion y no hay un manejador cargado en el vector
         if (sys->vector_int.manejadores[codigo_interrupcion] == 0) {
@@ -345,14 +355,6 @@ void sistema_ciclo(Sistema_t *sys) {
         }
     }
 
-    if (!sys->ejecutando) return;
-    
-    // Arbitraje del bus para CPU
-    pthread_mutex_lock(&sys->mutex_bus);  // La CPU pide permiso exclusivo para usar el bus
-    
-    // Ejecutar ciclo de instruccion
-    cpu_ciclo_instruccion(&sys->cpu, sys->memoria.datos, &sys->dma);// Una vez tiene el bus, realiza la busqueda y ejecucion
-    
     // Despertar procesos dormidos
     for (int i = 0; i < MAX_PROCESOS; i++) {
         if (sys->tabla_procesos[i].estado == DORMIDO) {
@@ -379,12 +381,9 @@ void sistema_ciclo(Sistema_t *sys) {
     }
     
     if (sys->cpu.PSW.pc >= TAM_MEMORIA || sys->cpu.PSW.pc < 0) {
-        // En lugar de terminar todo el sistema, lanzar falla de segmentation fault para el proceso
-        // y terminar solo ese proceso. Temporalmente lo dejaremos en pausa o terminaremos el proceso.
         if (sys->proceso_actual != -1) {
             printf("\nProceso %d finalizado (PC fuera de rango: %d)\n", sys->proceso_actual, sys->cpu.PSW.pc);
             
-            // Buscar y terminar en BCP
             for (int i = 0; i < MAX_PROCESOS; i++) {
                 if (sys->tabla_procesos[i].pid == sys->proceso_actual) {
                     sys->tabla_procesos[i].estado = TERMINADO;
@@ -397,99 +396,9 @@ void sistema_ciclo(Sistema_t *sys) {
             sistema_planificar(sys);
         }
     }
-}
-
-void sistema_debugger(Sistema_t *sys) {
-    char comando[100];
     
-    while (sys->ejecutando) {        //Se mantendra en la consola mientras este en el modo debugger 
-        printf("\n--- DEBUGGER ---\n");
-        printf("PC: %05d | AC: %08d | SP: %05d\n", 
-               sys->cpu.PSW.pc, sys->cpu.AC, sys->cpu.SP);
-        printf("MODO: %s | COD_CON: %d | INT_HAB: %s\n",
-               sys->cpu.PSW.modo == MODO_KERNEL ? "KERNEL" : "USUARIO",     //Si esta en Usuario (0) o Kernel (1)
-               sys->cpu.PSW.codigo_condicion,
-               sys->cpu.PSW.interrupciones == INT_HABILITADAS ? "ON" : "OFF");
-        
-        // Verifica que el PC apunte a una direccion valida y luego imprime el contenido de la memoria en esa direccion
-        if (sys->cpu.PSW.pc < TAM_MEMORIA) {  
-            printf("Siguiente instruccion [%05d]: %08d\n", 
-                   sys->cpu.PSW.pc, sys->memoria.datos[sys->cpu.PSW.pc]);
-        }
-        
-        //Muestra el menu de opciones
-        printf("\nComandos: (s)iguiente, (r)egistro, (m)emoria, (c)ontinuar, (q)uit\n");
-        printf("> ");
-        
-        //Espera a que el usuario escriba algo y presione Enter. Si hay error o fin de archivo, rompe el bucle
-        if (!fgets(comando, sizeof(comando), stdin)) {
-            break;
-        }
-         //Elimina el salto de linea (\n) que fgets captura al presionar Enter.
-        comando[strcspn(comando, "\n")] = 0;
-        
-        if (strcmp(comando, "s") == 0) {
-            // Ejecutar una instruccion
-            sistema_ciclo(sys);
-            
-            // vuelve a imprimir los registros despues de haber ejecutado la instruccion.
-            printf("\nInstruccion ejecutada:\n");
-            printf("res - AC: %08d | PC: %05d | SP: %05d\n",
-                   sys->cpu.AC, sys->cpu.PSW.pc, sys->cpu.SP);
-                   
-        } else if (strcmp(comando, "r") == 0) {   //Imprime la lista completa de registros internos de la CPU.
-            // Mostrar todos los registros
-            printf("\n=== REGISTROS ===\n");
-            printf("AC  : %08d\n", sys->cpu.AC);
-            printf("MAR : %08d\n", sys->cpu.MAR);
-            printf("MDR : %08d\n", sys->cpu.MDR);
-            printf("IR  : %08d\n", sys->cpu.IR);
-            printf("RB  : %08d\n", sys->cpu.RB);
-            printf("RL  : %08d\n", sys->cpu.RL);
-            printf("RX  : %08d\n", sys->cpu.RX);
-            printf("SP  : %08d\n", sys->cpu.SP);
-            printf("COD_CON  : %05d\n", sys->cpu.PSW.codigo_condicion);
-            printf("MODO  : %05d\n", sys->cpu.PSW.modo);
-            printf("INT_HAB  : %05d\n", sys->cpu.PSW.interrupciones);
-            printf("PC  : %05d\n", sys->cpu.PSW.pc);
-            
-        } else if (strcmp(comando, "m") == 0) {
-            // Ver memoria
-            int dir;
-            printf("Direccion de memoria: ");   //Pide un numero entero al usuario (la direccion de RAM que quiere ver).
-            scanf("%d", &dir);
-            getchar(); // Limpiar buffer
-            
-
-            //Verifica que la direccion exista (sea menor a 2000) e imprime el valor guardado ahi
-            if (dir >= 0 && dir < TAM_MEMORIA) {
-                printf("Memoria[%d] = %08d\n", dir, sys->memoria.datos[dir]);
-            } else {
-                printf("Direccion invalida\n");
-            }
-            
-        } else if (strcmp(comando, "c") == 0) {
-            // Continuar hasta el final
-            g_modo_debug = 0;
-            //Ejecuta un bucle rapido que consume todas las instrucciones que quedan hasta que el programa termine.
-            while (sys->ejecutando) {
-                sistema_ciclo(sys);
-            }
-            printf("\nPrograma finalizado\n");
-            break;
-        
-        //Termina la ejecucion
-        } else if (strcmp(comando, "q") == 0) {
-            sys->ejecutando = 0;
-            break;
-        }
-        
-        // revisa si el PC se salio de la memoria, eso quiere decir que debe terminar
-        if (sys->cpu.PSW.pc >= TAM_MEMORIA || sys->cpu.PSW.pc < 0) {
-            printf("\nPrograma finalizado (PC fuera de rango)\n");
-            sys->ejecutando = 0;
-        }
-    }
+    // IMPORTANTE: Liberar bus de la CPU luego del ciclo
+    pthread_mutex_unlock(&sys->mutex_bus);
 }
 
 void sistema_consola(Sistema_t *sys) {
@@ -511,19 +420,16 @@ void sistema_consola(Sistema_t *sys) {
         // Volvemos al ciclo si no ingresó nada.
         if (strlen(comando) == 0) continue;
     
-        // Extraemos el primer elemento.
-        char *elemento = strtok(comando, " ");
-
-        // Si no ingresa nada, volvemos de nuevo al ciclo.
-        if (!elemento) continue;
+        // Extraer el primer token (el comando)
+        char *token = strtok(comando, " ");
+        if (!token) continue;
     
-        // Comando para ejecutar procesos.
-        if (strcmp(comando, "ejecutar") == 0) {
-
+        // Comando para ejecutar procesos (ejecutar <p1> <p2> ...)
+        if (strcmp(token, "ejecutar") == 0) {
             int procesos_creados = 0;
             char *prog = strtok(NULL, " ");
             
-            // Bucle de extracción de parámetros (todos los procesos).
+            // Loop de extracción de parámetros (todos son programas)
             while (prog != NULL) {
                 if (sistema_crear_proceso(sys, prog) != -1) {
                     procesos_creados++;
@@ -532,14 +438,14 @@ void sistema_consola(Sistema_t *sys) {
             }
             
             if (procesos_creados > 0) {
-                // sistema_iniciar_ejecucion(sys, 0);
+                sistema_iniciar_ejecucion(sys);
             } else {
                 printf("No se crearon procesos validos.\n");
             }
         }
 
         // Comando para mostrar el contenido de la memoria.
-        else if (strcmp(comando, "memestat") == 0) {
+        else if (strcmp(token, "memestat") == 0) {
             int ocupada = 0;
             for (int i = 0; i < TAM_MEMORIA; i++) {
                 if (sys->memoria.ocupado[i]) ocupada++;
@@ -553,7 +459,7 @@ void sistema_consola(Sistema_t *sys) {
         }
 
         // Comando para mostrar todos los procesos del sistema.
-        else if (strcmp(comando, "ps") == 0) {
+        else if (strcmp(token, "ps") == 0) {
             printf("\n--- Tabla de Procesos ---\n");
             printf("%-5s | %-12s | %-15s | %-10s\n", "PID", "ESTADO", "PROGRAMA", "% MEM");
             printf("------------------------------------------------------\n");
@@ -582,26 +488,32 @@ void sistema_consola(Sistema_t *sys) {
         }
 
         // Comando para apagar el sistema.
-        else if (strcmp(comando, "apagar") == 0) {
+        else if (strcmp(token, "apagar") == 0) {
             printf("Apagando el sistema...\n");
             break; 
         }
 
         // Comando para reiniciar el sistema.
-        else if (strcmp(comando, "reiniciar") == 0) {
+        else if (strcmp(token, "reiniciar") == 0) {
             printf("Reiniciando el sistema...\n");
             sistema_limpiar(sys);
             sistema_inicializar(sys);
         }
 
         // Comando de ayuda para conocer todos los comandos.
-        else if (strcmp(comando, "ayuda") == 0) {
-            printf("Comandos disponibles: ejecutar, apagar, reiniciar, memestat, ps, ayuda\n");
+        else if (strcmp(token, "ayuda") == 0) {
+            printf("\n");
+            printf(" %-20s | %s\n", "ejecutar <p1> <pn...>", "Carga y ejecuta uno o varios programas en paralelo.");
+            printf(" %-20s | %s\n", "memestat", "Muestra el estado de la Memoria Principal y su \% de uso.");
+            printf(" %-20s | %s\n", "ps", "Muestra la tabla de Procesos Activos (PID, Estado, RAM).");
+            printf(" %-20s | %s\n", "reiniciar", "Limpia la memoria y reinicia el simulador desde cero.");
+            printf(" %-20s | %s\n", "apagar", "Finaliza la consola y apaga el Sistema Operativo.");
+            printf(" %-20s | %s\n", "ayuda", "Muestra este menú de opciones.");
         }
 
         // Si se detecta un comando inválido.
         else {
-            printf("Comando '%s' no reconocido. Escribe 'ayuda' para ver comandos disponibles.\n", comando);
+            printf("Comando '%s' no reconocido. Escribe 'ayuda' para ver comandos disponibles.\n", token);
         }
     }
 }

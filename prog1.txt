@@ -1,19 +1,16 @@
 .NombreProg Programa1
-.NumeroPalabras 7
+.NumeroPalabras 6
 _start 0
 
-// --------- CÓDIGO ---------
-// Mostrar '111' en pantalla mediante SYSCALL 2
-0400005    // LOAD 5 (Direccion del 111)
-2500000    // PSH (Apilar 111)
-0400002    // LOAD 2 (Syscall Imprimir)
-1300000    // SVC (Llamar Imprimir)
-// Terminar (SYSCALL 1)
-0400006    // LOAD 6 (Direccion del 0)
-2500000    // PSH (Apilar 0)
-0400001    // LOAD 1 (Syscall Terminar)
-1300000    // SVC 
-
-// --------- DATOS ---------
-0000111    // RAM[5] -> Valor 111
-0000000    // RAM[6] -> Valor 0 (Exito)
+// [0] LOAD inmediato 10 -> AC = 10
+04100010
+// [1] SUM inmediato 5  -> AC = 15
+00100005
+// [2] LOAD inmediato 0 (Estado OK para termina_prog)
+04100000
+// [3] PSH (Apilar el 0 como parametro)
+25000000
+// [4] LOAD inmediato 1 (Codigo Syscall Terminar)
+04100001
+// [5] SVC (Llamar al SO)
+13000000

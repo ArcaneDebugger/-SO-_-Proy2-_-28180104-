@@ -44,8 +44,8 @@ void sistema_log(int pid, Estado_t anterior, Estado_t nuevo);
 // Inicializa el sistema
 void sistema_inicializar(Sistema_t *sys);
 
-// Ejecuta un programa
-void sistema_ejecutar_programa(Sistema_t *sys, const char *archivo, int modo_debug);
+// Iniciar ejecución
+void sistema_iniciar_ejecucion(Sistema_t *sys);
 
 // Ciclo principal de ejecucion
 void sistema_ciclo(Sistema_t *sys);
@@ -55,8 +55,5 @@ void sistema_limpiar(Sistema_t *sys);
 
 // Consola interactiva
 void sistema_consola(Sistema_t *sys);
-
-// Modo debugger
-void sistema_debugger(Sistema_t *sys);
 
 #endif

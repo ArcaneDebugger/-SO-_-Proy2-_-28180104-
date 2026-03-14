@@ -3,8 +3,7 @@
 #include "logger.h"
 #include <stdio.h>
 #include <stdlib.h>
-
-extern int g_modo_debug;
+#include <stdlib.h>
 
 //Inicializa la CPU a 0 
 void cpu_inicializar(CPU_t *cpu) {
@@ -57,12 +56,6 @@ void cpu_busqueda(CPU_t *cpu, palabra_t *memoria) {  //Indica lo primero que deb
     
     // Obtiene la siguiente instruccion
     cpu->PSW.pc++;
-    
-    //Imprime el estado actual de los registros 
-    if (g_modo_debug) {
-        printf("FETCH: MAR=%d, MDR=%08d, IR=%08d, PC=%d\n", 
-               cpu->MAR, cpu->MDR, cpu->IR, cpu->PSW.pc);
-    }
 }
 
 Instruccion_t cpu_decodificar_instruccion(palabra_t instruccion_raw) {
@@ -170,11 +163,6 @@ void cpu_ejecutar(CPU_t *cpu, Instruccion_t inst, palabra_t *memoria, Controlado
     palabra_t res;
     int direccion;
     int dir_fisica;
-    
-    if (g_modo_debug) {
-        printf("EXECUTE: OP=%02d, DIR=%d, VAL=%05d\n", 
-               inst.codigo_op, inst.direccionamiento, inst.valor);
-    }
     
     switch(inst.codigo_op) {
         case 0: // sum
