@@ -133,11 +133,11 @@ void sistema_despachar(Sistema_t *sys, int proximo_indice) {
 
         if (pid_saliente != -1) {
             char log_msg[200];
-            sprintf(log_msg, "Quantum o Planificacion: Saliente PID = %d, Entrante PID = %d", pid_saliente, p_entrante->pid);
+            sprintf(log_msg, "Cambio de contexto: Saliente PID = %d, Entrante PID = %d", pid_saliente, p_entrante->pid);
             log_mensaje(log_msg);
         } else {
             char log_msg[200];
-            sprintf(log_msg, "Despacho: Entrante PID = %d", p_entrante->pid);
+            sprintf(log_msg, "Despacho inicial: Entrante PID = %d", p_entrante->pid);
             log_mensaje(log_msg);
         }
     } else {
@@ -150,6 +150,9 @@ void sistema_planificar(Sistema_t *sys) {
     
     // Si no hay nadie LISTO y ya hay un proceso corriendo, simplemente dejarlo seguir
     if (prox == -1 && sys->proceso_actual != -1) {
+        char log_msg[200];
+        sprintf(log_msg, "QUANTUM AGOTADO: PID %d continua (unico proceso listo)", sys->proceso_actual);
+        log_mensaje(log_msg);
         sys->contador_quantum = 0; // Reiniciar quantum para el mismo proceso
         return;
     }
@@ -163,16 +166,14 @@ void sistema_planificar(Sistema_t *sys) {
 void sistema_log(int pid, Estado_t anterior, Estado_t nuevo) {
     const char* nombres[] = {"NUEVO", "LISTO", "EJECUCION", "DORMIDO", "TERMINADO"};
     
-    FILE *f = fopen("sistema.log", "a");
-    if (f == NULL) return;
-
+    char buffer[256];
     if (anterior == -1) {
-        fprintf(f, "[LOG] Proceso %d: CREADO -> %s\n", pid, nombres[nuevo]);
+        sprintf(buffer, "[ESTADO] Proceso %d: CREADO -> %s", pid, nombres[nuevo]);
     } else {
-        fprintf(f, "[LOG] Proceso %d: %s -> %s\n", pid, nombres[anterior], nombres[nuevo]);
+        sprintf(buffer, "[ESTADO] Proceso %d: %s -> %s", pid, nombres[anterior], nombres[nuevo]);
     }
     
-    fclose(f);
+    log_mensaje(buffer);
 }
 
 void sistema_inicializar(Sistema_t *sys) {
@@ -315,8 +316,10 @@ void sistema_ciclo(Sistema_t *sys) {
     // Arbitraje del bus para CPU
     pthread_mutex_lock(&sys->mutex_bus);  // La CPU pide permiso exclusivo para usar el bus
     
-    // Ejecutar ciclo de instruccion
-    cpu_ciclo_instruccion(&sys->cpu, sys->memoria.datos, &sys->dma);// Una vez tiene el bus, realiza la busqueda y ejecucion
+    // Solo ejecutar instruccion si hay un proceso cargado en la CPU
+    if (sys->proceso_actual != -1) {
+        cpu_ciclo_instruccion(&sys->cpu, sys->memoria.datos, &sys->dma);
+    }
     
     // Procesar interrupciones INMEDIATAMENTE despues de la instruccion
     if (interrupcion_pendiente) {
@@ -372,6 +375,9 @@ void sistema_ciclo(Sistema_t *sys) {
     if (sys->proceso_actual != -1) {
         sys->contador_quantum++;
         if (sys->contador_quantum >= 2) {
+            char log_msg[200];
+            sprintf(log_msg, "QUANTUM AGOTADO: Proceso saliente PID = %d", sys->proceso_actual);
+            log_mensaje(log_msg);
             sys->contador_quantum = 0;
             sistema_planificar(sys);
         }
@@ -509,6 +515,7 @@ void sistema_consola(Sistema_t *sys) {
             printf(" %-20s | %s\n", "reiniciar", "Limpia la memoria y reinicia el simulador desde cero.");
             printf(" %-20s | %s\n", "apagar", "Finaliza la consola y apaga el Sistema Operativo.");
             printf(" %-20s | %s\n", "ayuda", "Muestra este menú de opciones.");
+            printf("\n");
         }
 
         // Si se detecta un comando inválido.

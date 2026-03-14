@@ -1,29 +1,72 @@
-=== Sistema iniciado: Wed Mar 11 09:54:32 2026
+=== Sistema iniciado: Sat Mar 14 10:08:54 2026
 ========================================
 
-[Wed Mar 11 09:54:32 2026] CPU inicializada
-[Wed Mar 11 09:54:32 2026] Memoria inicializada
-[Wed Mar 11 09:54:32 2026] Disco inicializado
-[Wed Mar 11 09:54:32 2026] DMA y Disco inicializados
-[Wed Mar 11 09:54:32 2026] Vector de interrupciones inicializado
-[Wed Mar 11 09:54:32 2026] Sistema completo inicializado
-[Wed Mar 11 09:54:38 2026] Programa 'prog1.txt' cargado al disco (Sector: 0, Palabras: 6)
-[Wed Mar 11 09:54:38 2026] Memoria asignada (Particion 1): RAM[300] a RAM[384]
-[Wed Mar 11 09:54:38 2026] Cargado en RAM[300]: 04100010
-[Wed Mar 11 09:54:38 2026] Cargado en RAM[301]: 00100005
-[Wed Mar 11 09:54:38 2026] Cargado en RAM[302]: 04100000
-[Wed Mar 11 09:54:38 2026] Cargado en RAM[303]: 25000000
-[Wed Mar 11 09:54:38 2026] Cargado en RAM[304]: 04100001
-[Wed Mar 11 09:54:38 2026] Cargado en RAM[305]: 13000000
-[Wed Mar 11 09:54:38 2026] Despacho: Entrante PID = 1
-[Wed Mar 11 09:54:38 2026] Iniciando simulacion
-[Wed Mar 11 09:54:38 2026] OPERACION: LOAD | Op1=10, Op2=10, res=10
-[Wed Mar 11 09:54:38 2026] OPERACION: SUM | Op1=15, Op2=5, res=15
-[Wed Mar 11 09:54:38 2026] OPERACION: LOAD | Op1=0, Op2=0, res=0
-[Wed Mar 11 09:54:38 2026] OPERACION: PSH | Op1=0, Op2=1, res=0
-[Wed Mar 11 09:54:38 2026] OPERACION: LOAD | Op1=1, Op2=1, res=1
-[Wed Mar 11 09:54:38 2026] OPERACION: SVC | Op1=1, Op2=0, res=0
-[Wed Mar 11 09:54:38 2026] INTERRUPCION ARROJADA: Codigo 2 - Llamada al sistema
-[Wed Mar 11 09:54:38 2026] Llamada al sistema invocada: Codigo 1
-[Wed Mar 11 09:54:38 2026] Memoria liberada: RAM[300] a RAM[384]
-[LOG] Proceso 1: EJECUCION -> TERMINADO
+[Sat Mar 14 10:08:54 2026] CPU inicializada
+[Sat Mar 14 10:08:54 2026] Memoria inicializada
+[Sat Mar 14 10:08:54 2026] Disco inicializado
+[Sat Mar 14 10:08:54 2026] DMA y Disco inicializados
+[Sat Mar 14 10:08:54 2026] Vector de interrupciones inicializado
+[Sat Mar 14 10:08:54 2026] Sistema completo inicializado
+[Sat Mar 14 10:09:04 2026] Programa 'prog1.txt' cargado al disco (Sector: 0, Palabras: 6)
+[Sat Mar 14 10:09:04 2026] Memoria asignada (Particion 1): RAM[300] a RAM[384]
+[Sat Mar 14 10:09:04 2026] Cargado en RAM[300]: 04100010
+[Sat Mar 14 10:09:04 2026] Cargado en RAM[301]: 00100005
+[Sat Mar 14 10:09:04 2026] Cargado en RAM[302]: 04100000
+[Sat Mar 14 10:09:04 2026] Cargado en RAM[303]: 25000000
+[Sat Mar 14 10:09:04 2026] Cargado en RAM[304]: 04100001
+[Sat Mar 14 10:09:04 2026] Cargado en RAM[305]: 13000000
+[Sat Mar 14 10:09:04 2026] [ESTADO] Proceso 1: CREADO -> NUEVO
+[Sat Mar 14 10:09:04 2026] [ESTADO] Proceso 1: NUEVO -> LISTO
+[Sat Mar 14 10:09:04 2026] Programa 'prog2.txt' cargado al disco (Sector: 1, Palabras: 6)
+[Sat Mar 14 10:09:04 2026] Memoria asignada (Particion 2): RAM[385] a RAM[469]
+[Sat Mar 14 10:09:04 2026] Cargado en RAM[385]: 04100020
+[Sat Mar 14 10:09:04 2026] Cargado en RAM[386]: 00100030
+[Sat Mar 14 10:09:04 2026] Cargado en RAM[387]: 04100000
+[Sat Mar 14 10:09:04 2026] Cargado en RAM[388]: 25000000
+[Sat Mar 14 10:09:04 2026] Cargado en RAM[389]: 04100001
+[Sat Mar 14 10:09:04 2026] Cargado en RAM[390]: 13000000
+[Sat Mar 14 10:09:04 2026] [ESTADO] Proceso 2: CREADO -> NUEVO
+[Sat Mar 14 10:09:04 2026] [ESTADO] Proceso 2: NUEVO -> LISTO
+[Sat Mar 14 10:09:04 2026] [ESTADO] Proceso 1: LISTO -> EJECUCION
+[Sat Mar 14 10:09:04 2026] Despacho inicial: Entrante PID = 1
+[Sat Mar 14 10:09:04 2026] Iniciando simulacion
+[Sat Mar 14 10:09:04 2026] OPERACION: LOAD | Op1=10, Op2=10, res=10
+[Sat Mar 14 10:09:04 2026] OPERACION: SUM | Op1=15, Op2=5, res=15
+[Sat Mar 14 10:09:04 2026] QUANTUM AGOTADO: Proceso saliente PID = 1
+[Sat Mar 14 10:09:04 2026] [ESTADO] Proceso 1: EJECUCION -> LISTO
+[Sat Mar 14 10:09:04 2026] [ESTADO] Proceso 2: LISTO -> EJECUCION
+[Sat Mar 14 10:09:04 2026] Cambio de contexto: Saliente PID = 1, Entrante PID = 2
+[Sat Mar 14 10:09:04 2026] OPERACION: LOAD | Op1=20, Op2=20, res=20
+[Sat Mar 14 10:09:04 2026] OPERACION: SUM | Op1=50, Op2=30, res=50
+[Sat Mar 14 10:09:04 2026] QUANTUM AGOTADO: Proceso saliente PID = 2
+[Sat Mar 14 10:09:04 2026] [ESTADO] Proceso 2: EJECUCION -> LISTO
+[Sat Mar 14 10:09:04 2026] [ESTADO] Proceso 1: LISTO -> EJECUCION
+[Sat Mar 14 10:09:04 2026] Cambio de contexto: Saliente PID = 2, Entrante PID = 1
+[Sat Mar 14 10:09:04 2026] OPERACION: LOAD | Op1=0, Op2=0, res=0
+[Sat Mar 14 10:09:04 2026] OPERACION: PSH | Op1=0, Op2=1, res=0
+[Sat Mar 14 10:09:04 2026] QUANTUM AGOTADO: Proceso saliente PID = 1
+[Sat Mar 14 10:09:04 2026] [ESTADO] Proceso 1: EJECUCION -> LISTO
+[Sat Mar 14 10:09:04 2026] [ESTADO] Proceso 2: LISTO -> EJECUCION
+[Sat Mar 14 10:09:04 2026] Cambio de contexto: Saliente PID = 1, Entrante PID = 2
+[Sat Mar 14 10:09:04 2026] OPERACION: LOAD | Op1=0, Op2=0, res=0
+[Sat Mar 14 10:09:04 2026] OPERACION: PSH | Op1=0, Op2=1, res=0
+[Sat Mar 14 10:09:04 2026] QUANTUM AGOTADO: Proceso saliente PID = 2
+[Sat Mar 14 10:09:04 2026] [ESTADO] Proceso 2: EJECUCION -> LISTO
+[Sat Mar 14 10:09:04 2026] [ESTADO] Proceso 1: LISTO -> EJECUCION
+[Sat Mar 14 10:09:04 2026] Cambio de contexto: Saliente PID = 2, Entrante PID = 1
+[Sat Mar 14 10:09:04 2026] OPERACION: LOAD | Op1=1, Op2=1, res=1
+[Sat Mar 14 10:09:04 2026] OPERACION: SVC | Op1=1, Op2=0, res=0
+[Sat Mar 14 10:09:04 2026] INTERRUPCION ARROJADA: Codigo 2 - Llamada al sistema
+[Sat Mar 14 10:09:04 2026] Llamada al sistema invocada: Codigo 1
+[Sat Mar 14 10:09:04 2026] Memoria liberada: RAM[300] a RAM[384]
+[Sat Mar 14 10:09:04 2026] [ESTADO] Proceso 1: EJECUCION -> TERMINADO
+[Sat Mar 14 10:09:04 2026] [ESTADO] Proceso 2: LISTO -> EJECUCION
+[Sat Mar 14 10:09:04 2026] Despacho inicial: Entrante PID = 2
+[Sat Mar 14 10:09:04 2026] OPERACION: LOAD | Op1=1, Op2=1, res=1
+[Sat Mar 14 10:09:04 2026] QUANTUM AGOTADO: Proceso saliente PID = 2
+[Sat Mar 14 10:09:04 2026] QUANTUM AGOTADO: PID 2 continua (unico proceso listo)
+[Sat Mar 14 10:09:04 2026] OPERACION: SVC | Op1=1, Op2=0, res=0
+[Sat Mar 14 10:09:04 2026] INTERRUPCION ARROJADA: Codigo 2 - Llamada al sistema
+[Sat Mar 14 10:09:04 2026] Llamada al sistema invocada: Codigo 1
+[Sat Mar 14 10:09:04 2026] Memoria liberada: RAM[385] a RAM[469]
+[Sat Mar 14 10:09:04 2026] [ESTADO] Proceso 2: EJECUCION -> TERMINADO
