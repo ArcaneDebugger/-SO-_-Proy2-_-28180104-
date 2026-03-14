@@ -1,0 +1,60 @@
+.NombreProg Cuenta_Regresiva
+.NumeroPalabras 20
+_start 0
+
+// ========= Programa 4: Cuenta regresiva de 5 a 1 =========
+// Prueba: loops (J, JMPE), aritmetica (RES), acceso directo a memoria
+// (STR/LOAD), multiples Syscall 2 en un loop, Syscall 1
+// Datos: dir 18 = contador, dir 19 = constante 1
+
+// --- Inicializacion ---
+// [0] LOAD inmediato 5 -> AC = 5
+04100005
+// [1] STR directo dir 18 -> contador = 5
+05000018
+// [2] LOAD inmediato 1 -> AC = 1
+04100001
+// [3] STR directo dir 19 -> constante = 1
+05000019
+
+// --- LOOP (dir 4) ---
+// [4] LOAD directo dir 18 -> AC = contador
+04000018
+// [5] COMP inmediato 0 -> CC = (AC - 0)
+08100000
+// [6] JMPE inmediato 14 -> si contador == 0, ir a TERMINAR
+09100014
+
+// --- Imprimir contador ---
+// [7] PSH (apilar contador para imprimir)
+25000000
+// [8] LOAD inmediato 2 -> AC = 2 (Syscall imprimir)
+04100002
+// [9] SVC
+13000000
+
+// --- Decrementar ---
+// [10] LOAD directo dir 18 -> AC = contador
+04000018
+// [11] RES directo dir 19 -> AC = AC - 1
+01000019
+// [12] STR directo dir 18 -> guardar nuevo contador
+05000018
+// [13] J inmediato 4 -> volver al LOOP
+27100004
+
+// --- TERMINAR (dir 14) ---
+// [14] LOAD inmediato 0 -> AC = 0 (exito)
+04100000
+// [15] PSH
+25000000
+// [16] LOAD inmediato 1 -> AC = 1 (Syscall terminar)
+04100001
+// [17] SVC
+13000000
+
+// --- DATOS (dir 18-19, no se ejecutan) ---
+// [18] Espacio para el contador (se sobreescribe en runtime)
+00000000
+// [19] Espacio para la constante (se sobreescribe en runtime)
+00000000

@@ -1,0 +1,47 @@
+.NombreProg Dormir_Imprimir
+.NumeroPalabras 16
+_start 0
+
+// ========= Programa 5: Dormir y luego imprimir =========
+// Prueba: Syscall 4 (Dormir) + Syscall 2 (Imprimir) intercalados
+// Ideal para probar Round Robin: se duerme, otros corren, despierta e imprime
+
+// --- Imprimir 111 (señal de que arranco) ---
+// [0] LOAD inmediato 111 -> AC = 111
+04100111
+// [1] PSH
+25000000
+// [2] LOAD inmediato 2 -> AC = 2 (Syscall imprimir)
+04100002
+// [3] SVC
+13000000
+
+// --- Dormir por 5 tics ---
+// [4] LOAD inmediato 5 -> AC = 5 (tics)
+04100005
+// [5] PSH
+25000000
+// [6] LOAD inmediato 4 -> AC = 4 (Syscall dormir)
+04100004
+// [7] SVC
+13000000
+
+// --- Al despertar, imprimir 222 (señal de que desperto) ---
+// [8] LOAD inmediato 222 -> AC = 222
+04100222
+// [9] PSH
+25000000
+// [10] LOAD inmediato 2 -> AC = 2 (Syscall imprimir)
+04100002
+// [11] SVC
+13000000
+
+// --- Terminar ---
+// [12] LOAD inmediato 0 -> AC = 0
+04100000
+// [13] PSH
+25000000
+// [14] LOAD inmediato 1 -> AC = 1 (Syscall terminar)
+04100001
+// [15] SVC
+13000000

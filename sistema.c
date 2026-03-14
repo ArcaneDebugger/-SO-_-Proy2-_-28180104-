@@ -410,8 +410,6 @@ void sistema_ciclo(Sistema_t *sys) {
 void sistema_consola(Sistema_t *sys) {
 
     char comando[256];   // Almacenara la linea completa que el usuario escriba.
-    char archivo[256];   // Se usara para guardar el nombre del programa.
-    char modo[20];       // Se usara para guardar el modo si se especifica.
         
     while (1) {
         
