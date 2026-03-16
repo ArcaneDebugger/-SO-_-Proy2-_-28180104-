@@ -5,13 +5,19 @@
 #include <ctype.h>
 #include <stdlib.h>
 
+// Función para inicializar el disco.
 void disco_inicializar(SimuladorDisco_t *disco) {
+
     disco->cantidad_programas = 0;
+
+    // Rellenamos nuestro disco con información base.
     for (int i = 0; i < MAX_PROCESOS; i++) {
         disco->sectores[i].ocupado = 0;
         disco->sectores[i].cant_palabras = 0;
         memset(disco->sectores[i].nombre_programa, 0, 50);
     }
+
+    // Enviamos el mensaje a nuestro LOG.
     log_mensaje("Disco inicializado");
 }
 
@@ -101,15 +107,21 @@ int disco_cargar_programa(SimuladorDisco_t *disco, const char *archivo, int *can
 }
 
 int disco_leer_programa(SimuladorDisco_t *disco, int indice_sector, palabra_t *buffer, int *cant_palabras) {
+
+    // 
     if (indice_sector < 0 || indice_sector >= MAX_PROCESOS || !disco->sectores[indice_sector].ocupado) {
         return -1;
     }
 
+    //
     SectorDisco_t *sector = &disco->sectores[indice_sector];
+
+    //
     for (int i = 0; i < sector->cant_palabras; i++) {
         buffer[i] = sector->codigo[i];
     }
-    
+    //
     if (cant_palabras) *cant_palabras = sector->cant_palabras;
+    
     return 0;
 }

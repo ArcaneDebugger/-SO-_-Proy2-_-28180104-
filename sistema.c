@@ -4,9 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Función para crear un nuevo proceso.
 int sistema_crear_proceso(Sistema_t *sys, const char *archivo) {
     
-    //
     int indice_libre = -1;
 
     // 1. Intentar buscar un hueco virgen (pid == 0) primero
@@ -92,6 +92,7 @@ int sistema_crear_proceso(Sistema_t *sys, const char *archivo) {
     return nuevo_proceso->pid;
 }
 
+// Función para planificar el próximo proceso.
 int sistema_planificar_rr(Sistema_t *sys) {
     int pid_saliente = sys->proceso_actual;
     int proximo_indice = -1;
@@ -116,6 +117,7 @@ int sistema_planificar_rr(Sistema_t *sys) {
     return proximo_indice;
 }
 
+// Función para despachar el próximo proceso.
 void sistema_despachar(Sistema_t *sys, int proximo_indice) {
     int pid_saliente = sys->proceso_actual;
 
@@ -156,6 +158,7 @@ void sistema_despachar(Sistema_t *sys, int proximo_indice) {
     }
 }
 
+// Función para planificar el próximo proceso.
 void sistema_planificar(Sistema_t *sys) {
     int prox = sistema_planificar_rr(sys);
     
@@ -174,6 +177,7 @@ void sistema_planificar(Sistema_t *sys) {
     }
 }
 
+// Función para registrar cambios de estado de los procesos.
 void sistema_log(int pid, Estado_t anterior, Estado_t nuevo) {
     const char* nombres[] = {"NUEVO", "LISTO", "EJECUCION", "DORMIDO", "TERMINADO"};
     
@@ -187,6 +191,7 @@ void sistema_log(int pid, Estado_t anterior, Estado_t nuevo) {
     log_mensaje(buffer);
 }
 
+// Función para inicializar el sistema.
 void sistema_inicializar(Sistema_t *sys) {
     // Inicializar mutex
     pthread_mutex_init(&sys->mutex_bus, NULL);    //Controla quien puede usar el bus de datos. (Mutex)
@@ -220,6 +225,7 @@ void sistema_inicializar(Sistema_t *sys) {
     log_mensaje("Sistema completo inicializado");
 }
 
+// Función para verificar si hay procesos activos.
 int hay_procesos_activos(Sistema_t *sys) {
     for (int i = 0; i < MAX_PROCESOS; i++) {
         if (sys->tabla_procesos[i].estado != TERMINADO && sys->tabla_procesos[i].pid != 0) {
@@ -229,6 +235,7 @@ int hay_procesos_activos(Sistema_t *sys) {
     return 0;
 }
 
+// Función para iniciar la ejecución del sistema.
 void sistema_iniciar_ejecucion(Sistema_t *sys) {
     sys->ejecutando = 1;
     
@@ -276,6 +283,7 @@ void sistema_iniciar_ejecucion(Sistema_t *sys) {
     printf(" Ciclos de reloj totales: %d\n\n", sys->ciclos_reloj);
 }
 
+// Función para manejar las llamadas del sistema.
 void sistema_manejar_syscall(Sistema_t *sys) {
     int syscall_code = sys->cpu.AC;
     // La pila crece de RX hacia arriba. El tope es RX + SP.
@@ -349,7 +357,7 @@ void sistema_manejar_syscall(Sistema_t *sys) {
     }
 }
 
-//Esta funcion encapsula lo que pasa en un ciclo de reloj.
+// Función para ejecutar un ciclo de reloj.
 void sistema_ciclo(Sistema_t *sys) {
     
     if (!sys->ejecutando) return;
@@ -455,12 +463,13 @@ void sistema_ciclo(Sistema_t *sys) {
     pthread_mutex_unlock(&sys->mutex_bus);
 }
 
+// Función para iniciar la consola.
 void sistema_consola(Sistema_t *sys) {
 
-    char comando[256];   // Almacenara la linea completa que el usuario escriba.
-    char archivo[256];   // Se usara para guardar el nombre del programa.
-    char modo[20];       // Se usara para guardar el modo si se especifica.
+    // Almacena la línea completa que el usuario ingresa.
+    char comando[256];
         
+    // Bucle principal de la consola.
     while (1) {
         
         printf("sistema> ");
@@ -474,12 +483,14 @@ void sistema_consola(Sistema_t *sys) {
         // Volvemos al ciclo si no ingresó nada.
         if (strlen(comando) == 0) continue;
     
-        // Extraer el primer token (el comando)
-        char *token = strtok(comando, " ");
-        if (!token) continue;
+        // Extraemos el primer token (el comando)
+        char *elemento = strtok(comando, " ");
+
+        // Si no hay elemento, volvemos al comienzo del bucle.
+        if (!elemento) continue;
     
         // Comando para ejecutar procesos (ejecutar <p1> <p2> ...)
-        if (strcmp(token, "ejecutar") == 0) {
+        if (strcmp(elemento, "ejecutar") == 0) {
             int procesos_creados = 0;
             char *prog = strtok(NULL, " ");
             
@@ -499,7 +510,7 @@ void sistema_consola(Sistema_t *sys) {
         }
 
         // Comando para mostrar el contenido completo de la memoria.
-        else if (strcmp(token, "memestat") == 0) {
+        else if (strcmp(elemento, "memestat") == 0) {
             int ocupada = 0;
             // Calcular ocupación solo en área de usuario para el porcentaje de usuario
             for (int i = MEM_SO; i < TAM_MEMORIA; i++) {
@@ -558,7 +569,7 @@ void sistema_consola(Sistema_t *sys) {
         }
 
         // Comando para mostrar todos los procesos del sistema.
-        else if (strcmp(token, "ps") == 0) {
+        else if (strcmp(elemento, "ps") == 0) {
             printf("\n--- Tabla de Procesos ---\n");
             printf("%-5s | %-12s | %-15s | %-8s | %-8s\n", "PID", "ESTADO", "PROGRAMA", "% ASIG", "% REAL");
             printf("--------------------------------------------------------------------\n");
@@ -585,20 +596,20 @@ void sistema_consola(Sistema_t *sys) {
         }
 
         // Comando para apagar el sistema.
-        else if (strcmp(token, "apagar") == 0) {
+        else if (strcmp(elemento, "apagar") == 0) {
             printf("Apagando el sistema...\n");
             break; 
         }
 
         // Comando para reiniciar el sistema.
-        else if (strcmp(token, "reiniciar") == 0) {
+        else if (strcmp(elemento, "reiniciar") == 0) {
             printf("Reiniciando el sistema...\n");
             sistema_limpiar(sys);
             sistema_inicializar(sys);
         }
 
         // Comando de ayuda para conocer todos los comandos.
-        else if (strcmp(token, "ayuda") == 0) {
+        else if (strcmp(elemento, "ayuda") == 0) {
             printf("\n");
             printf(" +----------------------------------------------------------------------+\n");
             printf(" |                    COMANDOS DEL SISTEMA OPERATIVO                    |\n");
@@ -617,11 +628,12 @@ void sistema_consola(Sistema_t *sys) {
 
         // Si se detecta un comando inválido.
         else {
-            printf("Comando '%s' no reconocido. Escribe 'ayuda' para ver comandos disponibles.\n", token);
+            printf("Comando '%s' no reconocido. Escribe 'ayuda' para ver comandos disponibles.\n", elemento);
         }
     }
 }
 
+// Función para limpiar el sistema.
 void sistema_limpiar(Sistema_t *sys) {
     dma_terminar(&sys->dma);
     pthread_mutex_destroy(&sys->mutex_bus);
